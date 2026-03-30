@@ -7,6 +7,17 @@ from PIL import Image
 import io
 
 
+
+def print_progress_bar(current: int, total: int, bar_length: int = 30) -> None:
+    if total <= 0:
+        return
+
+    percent = current / total
+    filled_length = int(bar_length * percent)
+    bar = "#" * filled_length + "-" * (bar_length - filled_length)
+
+    print(f"\rProgress: |{bar}| {percent:.0%} ({current}/{total})", end="", flush=True)
+
 def compress_pdf_for_remarkable(
     input_pdf: str,
     output_pdf: str,
@@ -57,7 +68,7 @@ def compress_pdf_for_remarkable(
 
         for page_index in range(total_pages):
             page_number = page_index + 1
-            print(f"Processing page {page_number}/{total_pages}...")
+            
 
             page = src_doc.load_page(page_index)
             pix = page.get_pixmap(matrix=matrix, alpha=False)
@@ -74,6 +85,9 @@ def compress_pdf_for_remarkable(
             rect = page.rect
             new_page = out_doc.new_page(width=rect.width, height=rect.height)
             new_page.insert_image(new_page.rect, stream=img_bytes.getvalue())
+            print_progress_bar(page_number, total_pages)
+            
+        print()
 
         # Save with extra cleanup/compression
         out_doc.save(
