@@ -116,19 +116,25 @@ def compress_pdf_for_remarkable(
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         print("Usage:")
-        print("  python compress_pdf.py input.pdf output.pdf")
+        print("  python compress_pdf.py input.pdf")
         print("\nOptional: edit dpi and jpeg_quality directly in the script if needed.")
         sys.exit(1)
 
     input_pdf = sys.argv[1]
-    output_pdf = sys.argv[2]
-
+    input_path = Path(input_pdf)
+    output_pdf = input_path.with_name(f"{input_path.stem}_compressed{input_path.suffix}")
+    
+    print(f"Output will be saved as: {output_pdf}")
+    
+    if output_pdf.exists():
+        print("Output file already exists.")
+    
     try:
         compress_pdf_for_remarkable(
             input_pdf=input_pdf,
-            output_pdf=output_pdf,
+            output_pdf=str(output_pdf),  
             dpi=120,
             jpeg_quality=50,
         )
