@@ -152,6 +152,15 @@ def run_cli(input_pdf: str, output_pdf: Optional[str] = None) -> int:
     return 0
 
 
+def format_completion_details(result: dict) -> str:
+    return (
+        f"Output file: {result['output_path']}\n"
+        f"Original size: {result['original_size_mb']:.2f} MB\n"
+        f"Compressed size: {result['new_size_mb']:.2f} MB\n"
+        f"Reduction: {result['reduction_percent']:.1f}%"
+    )
+
+
 class PdfCompressorGui:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
@@ -293,7 +302,7 @@ class PdfCompressorGui:
             elif event_type == "success":
                 _, result = event
                 self.progress_var.set(100.0)
-                self.output_path_var.set(result["output_path"])
+                self.output_path_var.set(format_completion_details(result))
                 self.status_var.set(
                     "Compression complete. This window will close automatically in about 10 seconds."
                 )
@@ -343,15 +352,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if args.gui:
+    if args.gui or not argv:
         return run_gui()
 
     if not args.input_pdf:
-        parser.print_help()
-        return 1
+        parser.error("input_pdf is required unless running with no arguments or --gui")
 
     return run_cli(args.input_pdf, args.output)
 
