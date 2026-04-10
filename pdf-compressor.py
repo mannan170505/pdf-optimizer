@@ -17,6 +17,13 @@ ProgressCallback = Callable[[int, int], None]
 DEFAULT_DPI = 120
 DEFAULT_JPEG_QUALITY = 50
 AUTO_CLOSE_DELAY_MS = 10_000
+DEFAULT_PRESET = "medium"
+
+PRESET_SETTINGS = {
+    "low": {"dpi": 96, "jpeg_quality": 35},
+    "medium": {"dpi": 120, "jpeg_quality": 50},
+    "high": {"dpi": 150, "jpeg_quality": 65},
+}
 
 
 def print_progress_bar(current: int, total: int, bar_length: int = 30) -> None:
@@ -33,6 +40,13 @@ def print_progress_bar(current: int, total: int, bar_length: int = 30) -> None:
 def default_output_path(input_pdf: str) -> Path:
     input_path = Path(input_pdf)
     return input_path.with_name(f"{input_path.stem}_compressed{input_path.suffix}")
+
+
+def settings_for_preset(preset: str) -> dict:
+    try:
+        return PRESET_SETTINGS[preset]
+    except KeyError as exc:
+        raise ValueError(f"Unknown preset: {preset}") from exc
 
 
 def compress_pdf_for_remarkable(
@@ -131,10 +145,16 @@ def compress_pdf_for_remarkable(
         out_doc.close()
 
 
-def run_cli(input_pdf: str, output_pdf: Optional[str] = None) -> int:
+def run_cli(
+    input_pdf: str,
+    output_pdf: Optional[str] = None,
+    preset: str = DEFAULT_PRESET,
+) -> int:
     output_path = Path(output_pdf) if output_pdf else default_output_path(input_pdf)
+    settings = settings_for_preset(preset)
 
     print(f"Output will be saved as: {output_path}")
+    print(f"Using preset: {preset}")
     if output_path.exists():
         print("Output file already exists.")
 
@@ -142,8 +162,8 @@ def run_cli(input_pdf: str, output_pdf: Optional[str] = None) -> int:
         compress_pdf_for_remarkable(
             input_pdf=input_pdf,
             output_pdf=str(output_path),
-            dpi=DEFAULT_DPI,
-            jpeg_quality=DEFAULT_JPEG_QUALITY,
+            dpi=settings["dpi"],
+            jpeg_quality=settings["jpeg_quality"],
         )
     except Exception as exc:
         print(f"Error: {exc}")
@@ -172,6 +192,7 @@ class PdfCompressorGui:
         self.close_timer_id: Optional[str] = None
 
         self.input_path_var = tk.StringVar()
+        self.preset_var = tk.StringVar(value=DEFAULT_PRESET)
         self.output_path_var = tk.StringVar(value="Output path will appear here.")
         self.status_var = tk.StringVar(value="Select a PDF file to begin.")
         self.progress_var = tk.DoubleVar(value=0.0)
@@ -199,12 +220,22 @@ class PdfCompressorGui:
         )
         self.browse_button.grid(row=1, column=1, pady=(4, 12), sticky="ew")
 
+        ttk.Label(frame, text="Preset").grid(row=2, column=0, sticky="w")
+        self.preset_dropdown = ttk.Combobox(
+            frame,
+            textvariable=self.preset_var,
+            values=tuple(PRESET_SETTINGS),
+            state="readonly",
+            width=20,
+        )
+        self.preset_dropdown.grid(row=3, column=0, columnspan=2, pady=(4, 12), sticky="ew")
+
         self.compress_button = ttk.Button(
             frame,
             text="Compress",
             command=self._start_compression,
         )
-        self.compress_button.grid(row=2, column=0, columnspan=2, pady=(0, 12), sticky="ew")
+        self.compress_button.grid(row=4, column=0, columnspan=2, pady=(0, 12), sticky="ew")
 
         self.progress_bar = ttk.Progressbar(
             frame,
@@ -214,23 +245,23 @@ class PdfCompressorGui:
             variable=self.progress_var,
             length=420,
         )
-        self.progress_bar.grid(row=3, column=0, columnspan=2, sticky="ew")
+        self.progress_bar.grid(row=5, column=0, columnspan=2, sticky="ew")
 
         ttk.Label(frame, textvariable=self.status_var, wraplength=420).grid(
-            row=4,
+            row=6,
             column=0,
             columnspan=2,
             pady=(12, 8),
             sticky="w",
         )
 
-        ttk.Label(frame, text="Output").grid(row=5, column=0, columnspan=2, sticky="w")
+        ttk.Label(frame, text="Output").grid(row=7, column=0, columnspan=2, sticky="w")
         ttk.Label(
             frame,
             textvariable=self.output_path_var,
             wraplength=420,
             justify="left",
-        ).grid(row=6, column=0, columnspan=2, pady=(4, 0), sticky="w")
+        ).grid(row=8, column=0, columnspan=2, pady=(4, 0), sticky="w")
 
         frame.columnconfigure(0, weight=1)
 
@@ -257,27 +288,31 @@ class PdfCompressorGui:
             messagebox.showerror("No file selected", "Select a PDF file before compressing.")
             return
 
+        preset = self.preset_var.get()
         output_path = str(default_output_path(input_path))
         self.output_path_var.set(output_path)
-        self.status_var.set("Compressing... Progress is also shown in the terminal.")
+        self.status_var.set(
+            f"Compressing with the {preset} preset... Progress is also shown in the terminal."
+        )
         self.progress_var.set(0.0)
         self._cancel_auto_close()
         self._set_controls_enabled(False)
 
         self.worker_thread = threading.Thread(
             target=self._compress_worker,
-            args=(input_path, output_path),
+            args=(input_path, output_path, preset),
             daemon=True,
         )
         self.worker_thread.start()
 
-    def _compress_worker(self, input_path: str, output_path: str) -> None:
+    def _compress_worker(self, input_path: str, output_path: str, preset: str) -> None:
+        settings = settings_for_preset(preset)
         try:
             result = compress_pdf_for_remarkable(
                 input_pdf=input_path,
                 output_pdf=output_path,
-                dpi=DEFAULT_DPI,
-                jpeg_quality=DEFAULT_JPEG_QUALITY,
+                dpi=settings["dpi"],
+                jpeg_quality=settings["jpeg_quality"],
                 progress_callback=lambda current, total: self.events.put(
                     ("progress", current, total)
                 ),
@@ -325,6 +360,7 @@ class PdfCompressorGui:
         state = "normal" if enabled else "disabled"
         self.browse_button.config(state=state)
         self.compress_button.config(state=state)
+        self.preset_dropdown.config(state="readonly" if enabled else "disabled")
 
 
 def run_gui() -> int:
@@ -342,6 +378,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         help="Optional output path. Defaults to <input>_compressed.pdf.",
+    )
+    parser.add_argument(
+        "--preset",
+        choices=tuple(PRESET_SETTINGS),
+        default=DEFAULT_PRESET,
+        help="Compression preset for CLI mode.",
     )
     parser.add_argument(
         "--gui",
@@ -364,7 +406,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if not args.input_pdf:
         parser.error("input_pdf is required unless running with no arguments or --gui")
 
-    return run_cli(args.input_pdf, args.output)
+    return run_cli(args.input_pdf, args.output, args.preset)
 
 
 if __name__ == "__main__":
