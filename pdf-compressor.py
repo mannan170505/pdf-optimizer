@@ -20,9 +20,9 @@ AUTO_CLOSE_DELAY_MS = 10_000
 DEFAULT_PRESET = "medium"
 
 PRESET_SETTINGS = {
-    "low": {"dpi": 96, "jpeg_quality": 35},
+    "low": {"dpi": 150, "jpeg_quality": 65},
     "medium": {"dpi": 120, "jpeg_quality": 50},
-    "high": {"dpi": 150, "jpeg_quality": 65},
+    "high": {"dpi": 96, "jpeg_quality": 35},
 }
 
 
@@ -47,6 +47,34 @@ def settings_for_preset(preset: str) -> dict:
         return PRESET_SETTINGS[preset]
     except KeyError as exc:
         raise ValueError(f"Unknown preset: {preset}") from exc
+
+
+def bytes_to_mb(size_bytes: int) -> float:
+    return size_bytes / (1024 * 1024)
+
+
+def build_size_summary(original_size_bytes: int, new_size_bytes: int) -> dict:
+    original_size_mb = bytes_to_mb(original_size_bytes)
+    new_size_mb = bytes_to_mb(new_size_bytes)
+
+    if original_size_bytes <= 0:
+        return {
+            "original_size_mb": original_size_mb,
+            "new_size_mb": new_size_mb,
+            "size_change_label": "Size change",
+            "size_change_percent": 0.0,
+        }
+
+    difference = new_size_bytes - original_size_bytes
+    change_percent = (abs(difference) / original_size_bytes) * 100
+    label = "Size increase" if difference > 0 else "Reduction"
+
+    return {
+        "original_size_mb": original_size_mb,
+        "new_size_mb": new_size_mb,
+        "size_change_label": label,
+        "size_change_percent": change_percent,
+    }
 
 
 def compress_pdf_for_remarkable(
@@ -121,24 +149,23 @@ def compress_pdf_for_remarkable(
         print("\nDone.")
         print(f"Compressed PDF saved to: {output_path}")
 
-        original_size = input_path.stat().st_size / (1024 * 1024)
-        new_size = output_path.stat().st_size / (1024 * 1024)
+        size_summary = build_size_summary(
+            input_path.stat().st_size,
+            output_path.stat().st_size,
+        )
 
-        print(f"Original size:  {original_size:.2f} MB")
-        print(f"New size:       {new_size:.2f} MB")
-
-        reduction = 0.0
-        if original_size > 0:
-            reduction = ((original_size - new_size) / original_size) * 100
-            print(f"Reduction:      {reduction:.1f}%")
+        print(f"Original size:  {size_summary['original_size_mb']:.2f} MB")
+        print(f"New size:       {size_summary['new_size_mb']:.2f} MB")
+        print(
+            f"{size_summary['size_change_label']}:      "
+            f"{size_summary['size_change_percent']:.1f}%"
+        )
 
         return {
             "input_path": str(input_path),
             "output_path": str(output_path),
             "total_pages": total_pages,
-            "original_size_mb": original_size,
-            "new_size_mb": new_size,
-            "reduction_percent": reduction,
+            **size_summary,
         }
     finally:
         src_doc.close()
@@ -177,7 +204,7 @@ def format_completion_details(result: dict) -> str:
         f"Output file: {result['output_path']}\n"
         f"Original size: {result['original_size_mb']:.2f} MB\n"
         f"Compressed size: {result['new_size_mb']:.2f} MB\n"
-        f"Reduction: {result['reduction_percent']:.1f}%"
+        f"{result['size_change_label']}: {result['size_change_percent']:.1f}%"
     )
 
 
@@ -220,7 +247,7 @@ class PdfCompressorGui:
         )
         self.browse_button.grid(row=1, column=1, pady=(4, 12), sticky="ew")
 
-        ttk.Label(frame, text="Preset").grid(row=2, column=0, sticky="w")
+        ttk.Label(frame, text="Preset (high = smaller file)").grid(row=2, column=0, sticky="w")
         self.preset_dropdown = ttk.Combobox(
             frame,
             textvariable=self.preset_var,
@@ -383,7 +410,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--preset",
         choices=tuple(PRESET_SETTINGS),
         default=DEFAULT_PRESET,
-        help="Compression preset for CLI mode.",
+        help="Compression strength preset (high = smaller file, low = better quality).",
     )
     parser.add_argument(
         "--gui",
