@@ -27,7 +27,7 @@ def print_progress_bar(current: int, total: int, bar_length: int = 30) -> None:
     filled_length = int(bar_length * percent)
     bar = "#" * filled_length + "-" * (bar_length - filled_length)
 
-    print(f"\rProgress: |{bar}| {percent:.0%} ({current}/{total})", end="", flush=True)
+    print(f"\rCompression: |{bar}| {percent:.0%} ({current}/{total})", end="", flush=True)
 
 
 def default_output_path(input_pdf: str) -> Path:
