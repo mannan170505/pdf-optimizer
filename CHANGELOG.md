@@ -2,6 +2,20 @@
 
 This changelog is based on the repository's actual commit history.
 
+## 2026-04-11
+
+### Project Identity
+- Renamed the main script from `pdf-compressor.py` to `pdf-optimizer.py`.
+- Renamed the project from PDF Compressor to PDF Optimizer to better match the actual behavior of the tool.
+
+### Compression Settings
+- Added `low`, `medium`, and `high` presets for both CLI and GUI usage.
+- Clarified preset behavior so `high` means stronger compression and a smaller file for image-heavy PDFs, while `low` preserves more image quality.
+
+### Behavior Clarification
+- Corrected size reporting so the summary shows a reduction when the output is smaller and a size increase when the output is larger.
+- Clarified that the image-rebuild approach can reduce size for scanned or image-heavy PDFs but can increase size for vector-heavy or text-heavy PDFs.
+
 ## 2026-04-09
 
 ### GUI Frontend

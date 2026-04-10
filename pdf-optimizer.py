@@ -211,7 +211,7 @@ def format_completion_details(result: dict) -> str:
 class PdfCompressorGui:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("PDF Compressor")
+        self.root.title("PDF Optimizer")
         self.root.resizable(False, False)
 
         self.events: "queue.Queue[tuple]" = queue.Queue()
@@ -399,7 +399,7 @@ def run_gui() -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Compress a PDF for e-ink or low-storage use.",
+        description="Optimize a PDF for smaller size or adjusted output quality.",
     )
     parser.add_argument("input_pdf", nargs="?", help="Path to the input PDF file.")
     parser.add_argument(
