@@ -87,11 +87,11 @@ In CLI mode:
 
 ## Presets
 
-- `low`: better visual quality, less aggressive size reduction
+- `low`: favors better visual quality and lighter compression
 - `medium`: balanced default behavior
-- `high`: more aggressive size reduction, smaller output for image-heavy PDFs
+- `high`: favors stronger compression and lower output quality
 
-The preset names describe compression strength, not output quality. `high` means higher compression.
+The preset names describe compression strength, not guaranteed file size results. Depending on the source PDF, any preset can still produce either a smaller file or a larger file after optimization. Image-heavy PDFs are more likely to shrink, while vector-heavy or text-heavy PDFs may grow after being rebuilt as images.
 
 ## Output File Naming
 
